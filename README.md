@@ -2,7 +2,7 @@
 LED Interface for STM32 family.
 
 
-#### Iontra Embedded Software Engineer Technical Assignment
+## Iontra Embedded Software Engineer Technical Assignment
 
 ### Project Statement
 Design an LED interface not specific to any one microcontroller or LED driver that provides
