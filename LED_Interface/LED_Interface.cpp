@@ -1,6 +1,17 @@
 #include "LED_Interface.h"
 
-void LED_Interface::Activate_LED(uint8_t red_pin, uint8_t green_pin, uint8_t blue_pin){
+LED_Interface::LED_Interface(){
+
+    MX_GPIO_Init();
+    MX_TIM1_Init();
+    MX_TIM2_Init();
+    MX_TIM3_Init();
+    MX_TIM4_Init();
+    MX_TIM5_Init();
+
+}
+
+void LED_Interface::Activate_LED(){
 
     if( Get_LED_Count() >= LED_COUNT ){
         // DO SOMETHING WITH: error_flags
@@ -8,9 +19,40 @@ void LED_Interface::Activate_LED(uint8_t red_pin, uint8_t green_pin, uint8_t blu
         return;
     }
 
-    led_array[led_enabled].r_pin = red_pin;
-    led_array[led_enabled].g_pin = green_pin;
-    led_array[led_enabled].b_pin = blue_pin;
+    // Load default values into Capture Compare Registers
+    // Then begin timers in PWM mode
+    switch(led_enabled){
+        case 1:
+            TIM1->CCR1 = DEFUALT_LED_CCR;
+            HAL_TIM_PWM_Start(&hw_timer_1, TIM_CHANNEL_1);
+            HAL_TIM_PWM_Start(&hw_timer_1, TIM_CHANNEL_2);
+            HAL_TIM_PWM_Start(&hw_timer_1, TIM_CHANNEL_3);
+            break;
+        case 2:
+            TIM2->CCR1 = DEFUALT_LED_CCR;
+            HAL_TIM_PWM_Start(&hw_timer_2, TIM_CHANNEL_1);
+            HAL_TIM_PWM_Start(&hw_timer_2, TIM_CHANNEL_2);
+            HAL_TIM_PWM_Start(&hw_timer_2, TIM_CHANNEL_3);
+            break;
+        case 3:
+            TIM3->CCR1 = DEFUALT_LED_CCR;
+            HAL_TIM_PWM_Start(&hw_timer_3, TIM_CHANNEL_1);
+            HAL_TIM_PWM_Start(&hw_timer_3, TIM_CHANNEL_2);
+            HAL_TIM_PWM_Start(&hw_timer_3, TIM_CHANNEL_3);
+            break;
+        case 4:
+            TIM4->CCR1 = DEFUALT_LED_CCR;
+            HAL_TIM_PWM_Start(&hw_timer_4, TIM_CHANNEL_1);
+            HAL_TIM_PWM_Start(&hw_timer_4, TIM_CHANNEL_2);
+            HAL_TIM_PWM_Start(&hw_timer_4, TIM_CHANNEL_3);
+            break;
+        case 5:
+            TIM5->CCR1 = DEFUALT_LED_CCR;
+            HAL_TIM_PWM_Start(&hw_timer_5, TIM_CHANNEL_1);
+            HAL_TIM_PWM_Start(&hw_timer_5, TIM_CHANNEL_2);
+            HAL_TIM_PWM_Start(&hw_timer_5, TIM_CHANNEL_3);
+            break;
+    }
 
     led_enabled++;
 }
@@ -26,7 +68,9 @@ void LED_Interface::To_Red(uint8_t led){
             // Accessing more than allowed LEDs
     }
 
-    led_array[led].isRed = true;
+    led_array[led].current_state = RED;
+
+    Set_PWM(led);
 }
 
 void LED_Interface::To_Green(uint8_t led){
@@ -36,7 +80,9 @@ void LED_Interface::To_Green(uint8_t led){
             // Accessing more than allowed LEDs
     }
 
-    led_array[led].isGreen = true;
+    led_array[led].current_state = GREEN;
+
+    Set_PWM(led);
 }
 
 void LED_Interface::To_Blue(uint8_t led){
@@ -46,7 +92,9 @@ void LED_Interface::To_Blue(uint8_t led){
             // Accessing more than allowed LEDs
     }
 
-    led_array[led].isBlue = true;
+    led_array[led].current_state = BLUE;
+
+    Set_PWM(led);
 }
 
 void LED_Interface::LED_Off(uint8_t led){
@@ -56,10 +104,13 @@ void LED_Interface::LED_Off(uint8_t led){
             // Accessing more than allowed LEDs
     }
 
+    led_array[led].current_state = OFF;
+
     // Set to Duty Cycle of 0% to Power Off LED
-    led_array[led].duty_cycle = Map(0);
+    led_array[led].brightness = 0;
 
     // Set PWM Value
+    Set_PWM(led);
 
 }
 
@@ -77,37 +128,59 @@ void LED_Interface::Change_Brightness(uint8_t led, uint8_t percent_brightness){
             // Accessing more than allowed LEDs
     }
 
-    led_array[led].duty_cycle = Map(percent_brightness);
+    led_array[led].brightness = percent_brightness;
+
     // Set PWM Value
+    Set_PWM(led);
 }
 
 uint8_t LED_Interface::Get_Errors(){
     return error_flags;
 }
 
-uint8_t LED_Interface::Map(uint8_t percent_brightness){
-
-    // Convert from a percent between 0 and 100
-    // To the duty cycle value for an LED
-}
-
 void LED_Interface::Set_PWM(uint8_t led){
 
-    if(led_array[led].isRed){
-
-        // Set PWM at pin:  led_array[led].r_pin
-        // To:              led_array[led].duty_cycle
+    switch(led){
+        case 1:
+            Set_PWM(led, &hw_timer_1);
+            break;
+        case 2:
+            Set_PWM(led, &hw_timer_2);
+            break;
+        case 3:
+            Set_PWM(led, &hw_timer_3);
+            break;
+        case 4:
+            Set_PWM(led, &hw_timer_4);
+            break;
+        case 5:
+            Set_PWM(led, &hw_timer_5);
+            break;
     }
+}
 
-    if(led_array[led].isGreen){
+void LED_Interface::Set_PWM(uint8_t led, TIM_HandleTypeDef* time_handle){
 
-        // Set PWM at pin: led_array[led].g_pin
-        // To:              led_array[led].duty_cycle
-    }
-
-    if(led_array[led].isBlue){
-
-        // Set PWM at pin: led_array[led].b_pin
-        // To:              led_array[led].duty_cycle
+    switch(led_array[led].current_state){
+        case LED_States::OFF:
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_1, led_array[led].brightness);
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_2, led_array[led].brightness);
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_3, led_array[led].brightness);
+            break;
+        case LED_States::RED:
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_1, led_array[led].brightness);
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_2, 0);
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_3, 0);
+            break;
+        case LED_States::GREEN:
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_1, 0);
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_2, led_array[led].brightness);
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_3, 0);
+            break;
+        case LED_States::BLUE:
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_1, 0);
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_2, 0);
+            _HAL_TIM_SET_COMPARE(time_handle, TIM_CHANNEL_3, led_array[led].brightness);
+            break;
     }
 }
